@@ -5,6 +5,8 @@ const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
 const app = express();
 
+let items=[];
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
@@ -21,11 +23,23 @@ app.post("/signup",function(request,response)
 {
     response.sendFile(__dirname+"/signup.html");
 });
+app.post("/additenary",function(request,response)
+{
+    //console.log(request.body.lastitem);
+    var lastrecieved=request.body.lastitem;
+    if(lastrecieved!="")
+    {
+        items.push(lastrecieved);
+    }
+    response.render("itenary",{lastaddeditem: items});
+});
 app.post("/",function(request,response)
 {
     if(request.body.username=="harissh.a.s@gmail.com" && request.body.passwd=="123")
     {
-        response.sendFile(__dirname+"/home.html");
+        //response.sendFile(__dirname+"/home.html");
+        items=[];
+        response.render("itenary",{lastaddeditem: items});
     }
     else
     {
