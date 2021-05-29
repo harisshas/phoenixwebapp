@@ -51,4 +51,11 @@ body {
   border-radius: 0.5rem;
   
 }
-
+.commentfromjs
+{
+  color:red;
+}
+.commentfromblank
+{
+  color: #f5f5f5;
+}

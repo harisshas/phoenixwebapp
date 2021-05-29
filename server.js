@@ -8,9 +8,14 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+app.set("view engine","ejs");
+
 app.get("/",function(request,response)
 {
-    response.sendFile(__dirname+"/login.html");
+    //response.sendFile(__dirname+"/login.html");
+    var comment="blank";
+    response.render("login",{htmlcomment: comment});
+
 });
 app.post("/signup",function(request,response)
 {
@@ -24,6 +29,9 @@ app.post("/",function(request,response)
     }
     else
     {
+        var comment="username or password is incorrect";
+        response.render("login",{htmlcomment: comment});
+        /*
         const url="https://api.openweathermap.org/data/2.5/weather?lat=10.809&lon=78.6988&appid=59df6b279dbca9946fc700568bb0b6f3&units=metric";
         https.get(url,function(resp)
         {
@@ -38,6 +46,7 @@ app.post("/",function(request,response)
         });
         
         //response.send("username or password incorrect")
+        */
     }
 });
 app.listen(process.env.PORT || 3000,function()
