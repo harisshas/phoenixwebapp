@@ -3,9 +3,11 @@ const bodyParser = require("body-parser");
 const weather=require(__dirname+"/weather.js");
 const https=require("https");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 
 const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
+const { format } = require("path");
 const app = express();
 
 let items=[];
@@ -16,6 +18,19 @@ app.use(express.static("public"));
 app.set("view engine","ejs");
 
 mongoose.connect("mongodb+srv://dbadmin:dbadmin@2403@cluster0.uyobi.mongodb.net/users?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
+
+function getkeynow()
+{
+    var key="";
+    for(var i=0;i<16;i++)
+    {
+        var numalph=Math.floor(Math.random()*26);
+        //console.log(numalph);
+        var num = String.fromCharCode(97 + numalph);
+        key+=num;
+    }
+    return(key);
+}
 
 const userSchema = new mongoose.Schema(
     {
@@ -51,22 +66,10 @@ const userSchema = new mongoose.Schema(
         }
     });    
 
+const secret="thissecret";
+//userSchema.plugin(encrypt,{secret:secret,encyptedFields:["password"]});
 const Usercollection=mongoose.model("userdetails",userSchema);
 //weather.getweatherimageurl();
-
-/*
-const usercoll=new Usercollection(
-    {
-        _id:2,
-        username:"arjun_s@gmail.com",
-        password:"password3215",
-        firstname:"Arjun",
-        lastname:"Sridhar",
-        key:"fsdafsdkfjsjfoqyeweq",
-        emailreg:"no"
-    });
-usercoll.save();
-*/
 
 app.get("/",function(request,response)
 {
@@ -77,8 +80,123 @@ app.get("/",function(request,response)
 });
 app.post("/signup",function(request,response)
 {
-    response.sendFile(__dirname+"/signup.html");
+    var comment="blank";
+    response.render("signup",{htmlcomment: comment});
 });
+app.get("/signup",function(request,response)
+{
+    var comment="blank";
+    response.render("signup",{htmlcomment: comment});
+});
+app.post("/register",function(request,response)
+{
+    /*
+    console.log("first name:"+request.body.firstname);
+    console.log("last name:"+request.body.lastname);
+    console.log("email:"+request.body.emailsub);
+    console.log("password entered:"+request.body.passwd);
+    console.log("password re-entered:"+request.body.passwdreenter);
+    console.log("whether subscribed to newletter:"+request.body.subscribe);
+    */
+    //console.log(request.body);
+    
+    var comment="There was some issue with your registration. please try again.";
+    if(request.body.firstname=="")
+    {
+        comment="firstname cannot be blank.";
+        response.render("signup",{htmlcomment: comment});
+    }
+    else if(request.body.lastname=="")
+    {
+        comment="lastname cannot be blank.";
+        response.render("signup",{htmlcomment: comment});
+    }
+    else if(request.body.emailsub=="")
+    {
+        comment="email cannot be blank.";
+        response.render("signup",{htmlcomment: comment});
+    }
+    else if(request.body.passwd.length<8)
+    {
+        comment="password should contain atleast 8 letters";
+        response.render("signup",{htmlcomment: comment});
+    }
+    else if(request.body.passwd!==request.body.passwdreenter)
+    {
+        comment="entered passwords don't match";
+        response.render("signup",{htmlcomment: comment});
+    }
+    else 
+    {
+        Usercollection.findOne({username:request.body.emailsub},function(err,recusercoll)
+        {
+            if(err)
+            {
+                comment="there was an error connecting to database. try again";
+                response.render("signup",{htmlcomment: comment});
+            }
+            else
+            {
+                if(recusercoll)
+                {
+                    comment="the email id is already registered";
+                    response.render("signup",{htmlcomment: comment});
+                }
+                else
+                {
+                    Usercollection.find({},function(err,recusercoll)
+                    {
+                        if(err)
+                        {
+                            comment="there was an error connecting to database. try again";
+                            response.render("signup",{htmlcomment: comment});
+                        }
+                        else
+                        {
+                            if(recusercoll)
+                            {
+                                //console.log(recusercoll.length);
+                                //console.log(getkey());
+                                const usercoll=new Usercollection(
+                                    {
+                                        _id:recusercoll.length+1,
+                                        username:request.body.emailsub,
+                                        password:request.body.passwdreenter,
+                                        firstname:request.body.firstname,
+                                        lastname:request.body.lastname,
+                                        key:getkeynow(),
+                                        emailreg:"no"
+                                    });
+                                usercoll.save();
+                                comment="registration complete. login after email verification";
+                                response.render("login",{htmlcomment: comment});
+                            }
+                            else
+                            {
+                                //console.log(getkey());
+                                const usercoll=new Usercollection(
+                                    {
+                                        _id:1,
+                                        username:request.body.emailsub,
+                                        password:request.body.passwdreenter,
+                                        firstname:request.body.firstname,
+                                        lastname:request.body.lastname,
+                                        key:getkeynow(),
+                                        emailreg:"no"
+                                    });
+                                usercoll.save();
+                                comment="registration complete. login after email verification";
+                                response.render("login",{htmlcomment: comment});
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+    //response.render("signup",{htmlcomment: comment});
+});
+
 app.post("/additenary",function(request,response)
 {
     //console.log(request.body.lastitem);
