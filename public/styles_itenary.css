@@ -1,4 +1,32 @@
+input[type=checkbox]
+{
+  margin-left: 10rem;
+}
 input[type=checkbox]:checked + label 
 {
   text-decoration: line-through;
+}
+
+.checkboxrow
+{
+  margin-left:2rem;
+  margin-right:2rem;
+  margin-top: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 0.5rem;
+  padding-top: 0.5rem;
+}
+.labelforcheckbox
+{
+  font-size: 2rem;
+}
+.userinputtext
+{
+  margin-top:2rem;
+  font-size: 1.75rem;
+}
+.addbutton
+{
+  border-radius: 50%;
+  font-size: 1.5rem;
 }
