@@ -4,7 +4,8 @@ const bodyParser = require("body-parser");
 const weather=require(__dirname+"/weather.js");
 const https=require("https");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+//const encrypt = require("mongoose-encryption");
+const md5 = require("md5");
 
 const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
@@ -18,7 +19,7 @@ app.use(express.static("public"));
 
 app.set("view engine","ejs");
 
-mongoose.connect("mongodb+srv://"+process.env.DBUSERNAME+":"+process.env.DBPASSWD+"@cluster0.uyobi.mongodb.net/users?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
+mongoose.connect("mongodb+srv://"+process.env.DBUSERNAME+":"+process.env.DBPASSWD+"@cluster0.uyobi.mongodb.net/"+process.env.DBNAME+"?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
 
 function getkeynow()
 {
@@ -67,8 +68,8 @@ const userSchema = new mongoose.Schema(
             }
     });    
 
-
-userSchema.plugin(encrypt,{secret:process.env.SECRET,encyptedFields:['password'],excludeFromEncryption: ['_id','firstname','lastname','key','emailreg','username']});
+//to use encrypt
+//userSchema.plugin(encrypt,{secret:process.env.SECRET,encyptedFields:['password'],excludeFromEncryption: ['_id','firstname','lastname','key','emailreg','username']});
 
 const Usercollection=mongoose.model("userdetails",userSchema);
 //weather.getweatherimageurl();
@@ -167,7 +168,7 @@ app.post("/register",function(request,response)
                                         lastname:request.body.lastname,
                                         key:getkeynow(),
                                         emailreg:"no",
-                                        password:request.body.passwdreenter
+                                        password:md5(request.body.passwdreenter)
                                     });
                                 usercoll.save();
                                 comment="registration complete. login after email verification";
@@ -184,7 +185,7 @@ app.post("/register",function(request,response)
                                         lastname:request.body.lastname,
                                         key:getkeynow(),
                                         emailreg:"no",
-                                        password:request.body.passwdreenter
+                                        password:md5(request.body.passwdreenter)
                                     });
                                 usercoll.save();
                                 comment="registration complete. login after email verification";
@@ -223,7 +224,7 @@ app.post("/",function(request,response)
         {
             if(recusercoll)
             {
-                if(recusercoll.password==request.body.passwd)
+                if(recusercoll.password==md5(request.body.passwd))
                 {
                     //console.log("username and password match");
                     if(recusercoll.emailreg=="yes")
