@@ -4,8 +4,11 @@ const bodyParser = require("body-parser");
 const weather=require(__dirname+"/weather.js");
 const https=require("https");
 const mongoose = require("mongoose");
+//to use key based encryption
 //const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
+//to use hashing
+//const md5 = require("md5");
+const bcrypt=require("bcrypt");
 
 const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
@@ -13,6 +16,8 @@ const { format } = require("path");
 const app = express();
 
 let items=[];
+
+const saltrounds=10;
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -68,7 +73,7 @@ const userSchema = new mongoose.Schema(
             }
     });    
 
-//to use encrypt
+//to use encrypt. add key in heroku if required
 //userSchema.plugin(encrypt,{secret:process.env.SECRET,encyptedFields:['password'],excludeFromEncryption: ['_id','firstname','lastname','key','emailreg','username']});
 
 const Usercollection=mongoose.model("userdetails",userSchema);
@@ -160,36 +165,47 @@ app.post("/register",function(request,response)
                             {
                                 //console.log(recusercoll.length);
                                 //console.log(getkey());
-                                const usercoll=new Usercollection(
-                                    {
-                                        _id:recusercoll.length+1,
-                                        username:request.body.emailsub,
-                                        firstname:request.body.firstname,
-                                        lastname:request.body.lastname,
-                                        key:getkeynow(),
-                                        emailreg:"no",
-                                        password:md5(request.body.passwdreenter)
-                                    });
-                                usercoll.save();
-                                comment="registration complete. login after email verification";
-                                response.render("login",{htmlcomment: comment});
+                                bcrypt.hash(request.body.passwdreenter,saltrounds,function(err,hash)
+                                {
+                                    const usercoll=new Usercollection(
+                                        {
+                                            _id:recusercoll.length+1,
+                                            username:request.body.emailsub,
+                                            firstname:request.body.firstname,
+                                            lastname:request.body.lastname,
+                                            key:getkeynow(),
+                                            emailreg:"no",
+                                            password:hash
+                                            //to use md5 hasing     
+                                            //password:md5(request.body.passwdreenter)
+                                        });
+                                    usercoll.save();
+                                    comment="registration complete. login after email verification";
+                                    response.render("login",{htmlcomment: comment});
+                                });
+                                
                             }
                             else
                             {
                                 //console.log(getkey());
-                                const usercoll=new Usercollection(
-                                    {
-                                        _id:1,
-                                        username:request.body.emailsub,
-                                        firstname:request.body.firstname,
-                                        lastname:request.body.lastname,
-                                        key:getkeynow(),
-                                        emailreg:"no",
-                                        password:md5(request.body.passwdreenter)
-                                    });
-                                usercoll.save();
-                                comment="registration complete. login after email verification";
-                                response.render("login",{htmlcomment: comment});
+                                bcrypt.hash(request.body.passwdreenter,saltrounds,function(err,hash)
+                                {
+                                    const usercoll=new Usercollection(
+                                        {
+                                            _id:1,
+                                            username:request.body.emailsub,
+                                            firstname:request.body.firstname,
+                                            lastname:request.body.lastname,
+                                            key:getkeynow(),
+                                            emailreg:"no",
+                                            password:hash
+                                            //to use md5 hasing     
+                                            //password:md5(request.body.passwdreenter)
+                                        });
+                                    usercoll.save();
+                                    comment="registration complete. login after email verification";
+                                    response.render("login",{htmlcomment: comment});
+                                });
                             }
                         }
                     });
@@ -224,27 +240,31 @@ app.post("/",function(request,response)
         {
             if(recusercoll)
             {
-                if(recusercoll.password==md5(request.body.passwd))
+                //to use md5 hashing instead use below code
+                //if(recusercoll.password==md5(request.body.passwd))
+                bcrypt.compare(request.body.passwd,recusercoll.password,function(err,res)
                 {
-                    //console.log("username and password match");
-                    if(recusercoll.emailreg=="yes")
+                    if(res==true)
                     {
-                        //console.log("email verification completed");
-                        response.render("itenary",{lastaddeditem: items});
+                        if(recusercoll.emailreg=="yes")
+                        {
+                            //console.log("email verification completed");
+                            response.render("itenary",{lastaddeditem: items});
+                        }
+                        else
+                        {
+                            //console.log("email verification not yet completed");
+                            var comment="email verification not yet completed";
+                            response.render("login",{htmlcomment: comment});
+                        }
                     }
                     else
                     {
-                        //console.log("email verification not yet completed");
-                        var comment="email verification not yet completed";
+                        //console.log("username and password entered do not match");
+                        var comment="username and password entered do not match";
                         response.render("login",{htmlcomment: comment});
                     }
-                }
-                else
-                {
-                    //console.log("username and password entered do not match");
-                    var comment="username and password entered do not match";
-                    response.render("login",{htmlcomment: comment});
-                }
+                });
             }
             else
             {
