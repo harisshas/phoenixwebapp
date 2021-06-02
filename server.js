@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
 //const encrypt = require("mongoose-encryption");
 //to use hashing
 //const md5 = require("md5");
-const bcrypt=require("bcrypt");
+const bcrypt=require("bcryptjs");
 
 const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
