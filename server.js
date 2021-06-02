@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const weather=require(__dirname+"/weather.js");
@@ -17,7 +18,7 @@ app.use(express.static("public"));
 
 app.set("view engine","ejs");
 
-mongoose.connect("mongodb+srv://dbadmin:dbadmin@2403@cluster0.uyobi.mongodb.net/users?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
+mongoose.connect("mongodb+srv://"+process.env.DBUSERNAME+":"+process.env.DBPASSWD+"@cluster0.uyobi.mongodb.net/users?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
 
 function getkeynow()
 {
@@ -43,11 +44,6 @@ const userSchema = new mongoose.Schema(
             required:[true,"username not specified"],
             unique:true
             },
-        password:{
-            type:String,
-            required:[true,"password not specified"]
-            //unique:true
-            },
         firstname:{
             type:String,
             required:[true,"firstname not specified"]
@@ -63,11 +59,17 @@ const userSchema = new mongoose.Schema(
         },
         emailreg:{
             type:String
-        }
+        },
+        password:{
+            type:String,
+            required:[true,"password not specified"]
+            //unique:true
+            }
     });    
 
-const secret="thissecret";
-//userSchema.plugin(encrypt,{secret:secret,encyptedFields:["password"]});
+
+userSchema.plugin(encrypt,{secret:process.env.SECRET,encyptedFields:['password'],excludeFromEncryption: ['_id','firstname','lastname','key','emailreg','username']});
+
 const Usercollection=mongoose.model("userdetails",userSchema);
 //weather.getweatherimageurl();
 
@@ -161,11 +163,11 @@ app.post("/register",function(request,response)
                                     {
                                         _id:recusercoll.length+1,
                                         username:request.body.emailsub,
-                                        password:request.body.passwdreenter,
                                         firstname:request.body.firstname,
                                         lastname:request.body.lastname,
                                         key:getkeynow(),
-                                        emailreg:"no"
+                                        emailreg:"no",
+                                        password:request.body.passwdreenter
                                     });
                                 usercoll.save();
                                 comment="registration complete. login after email verification";
@@ -178,11 +180,11 @@ app.post("/register",function(request,response)
                                     {
                                         _id:1,
                                         username:request.body.emailsub,
-                                        password:request.body.passwdreenter,
                                         firstname:request.body.firstname,
                                         lastname:request.body.lastname,
                                         key:getkeynow(),
-                                        emailreg:"no"
+                                        emailreg:"no",
+                                        password:request.body.passwdreenter
                                     });
                                 usercoll.save();
                                 comment="registration complete. login after email verification";
