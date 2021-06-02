@@ -1,1 +1,1 @@
-web: node server_pass.js
+web: node server.js

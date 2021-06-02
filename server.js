@@ -4,15 +4,13 @@ const bodyParser = require("body-parser");
 const weather=require(__dirname+"/weather.js");
 const https=require("https");
 const mongoose = require("mongoose");
-//to use key based encryption
-//const encrypt = require("mongoose-encryption");
-//to use hashing
-//const md5 = require("md5");
-const bcrypt=require("bcryptjs");
-
 const { TIMEOUT } = require("dns");
 const { setTimeout } = require("timers");
 const { format } = require("path");
+const session =require("express-session");
+const passport=require("passport");
+const LocalStrategy=require("passport-local").Strategy;
+const passportLocalMongoose=require("passport-local-mongoose");
 const app = express();
 
 let items=[];
@@ -21,11 +19,20 @@ const saltrounds=10;
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
-
 app.set("view engine","ejs");
 
-mongoose.connect("mongodb+srv://"+process.env.DBUSERNAME+":"+process.env.DBPASSWD+"@cluster0.uyobi.mongodb.net/"+process.env.DBNAME+"?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
+app.use(session(
+{
+    secret:process.env.SECRET,
+    resave:false,
+    saveUninitialized:false
+}));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+mongoose.connect("mongodb+srv://"+process.env.DBUSERNAME+":"+process.env.DBPASSWD+"@cluster0.uyobi.mongodb.net/"+process.env.DBNAME+"?retryWrites=true&w=majority",{useNewUrlParser:true, useUnifiedTopology: true});
+mongoose.set("useCreateIndex",true);
 function getkeynow()
 {
     var key="";
@@ -68,17 +75,46 @@ const userSchema = new mongoose.Schema(
         },
         password:{
             type:String,
-            required:[true,"password not specified"]
             //unique:true
             }
     });    
 
-//to use encrypt. add key in heroku if required
-//userSchema.plugin(encrypt,{secret:process.env.SECRET,encyptedFields:['password'],excludeFromEncryption: ['_id','firstname','lastname','key','emailreg','username']});
+userSchema.plugin(passportLocalMongoose);
+//userSchema.plugin(passportLocalMongoose, {username : "email"});
 
-const Usercollection=mongoose.model("userdetails",userSchema);
+const Usercollection=new mongoose.model("userdetails",userSchema);
 //weather.getweatherimageurl();
 
+passport.use(new LocalStrategy(
+    {
+        usernameField: 'username',
+        passwordField: 'passwd'
+    },Usercollection.authenticate()));
+//passport.use(Usercollection.createStrategy());
+passport.serializeUser(Usercollection.serializeUser());
+passport.deserializeUser(Usercollection.deserializeUser());
+
+
+app.get("/home",function(request,response)
+{
+    //response.sendFile(__dirname+"/login.html");
+    if(request.isAuthenticated())
+    {
+        var comment="blank";
+        response.render("home");
+    }
+    else
+    {
+        var comment="please login using your credentials";
+        response.render("login",{htmlcomment: comment});
+    }
+});
+app.post("/logout",function(request,response)
+{
+    request.logout();
+    var comment="blank";
+    response.render("login",{htmlcomment: comment});
+});
 app.get("/",function(request,response)
 {
     //response.sendFile(__dirname+"/login.html");
@@ -165,46 +201,38 @@ app.post("/register",function(request,response)
                             {
                                 //console.log(recusercoll.length);
                                 //console.log(getkey());
-                                bcrypt.hash(request.body.passwdreenter,saltrounds,function(err,hash)
+                                Usercollection.register({_id:recusercoll.length+1,username:request.body.emailsub,firstname:request.body.firstname,lastname:request.body.lastname,key:getkeynow(),emailreg:"no"},request.body.passwdreenter,function(err,user)
                                 {
-                                    const usercoll=new Usercollection(
-                                        {
-                                            _id:recusercoll.length+1,
-                                            username:request.body.emailsub,
-                                            firstname:request.body.firstname,
-                                            lastname:request.body.lastname,
-                                            key:getkeynow(),
-                                            emailreg:"no",
-                                            password:hash
-                                            //to use md5 hasing     
-                                            //password:md5(request.body.passwdreenter)
-                                        });
-                                    usercoll.save();
-                                    comment="registration complete. login after email verification";
-                                    response.render("login",{htmlcomment: comment});
+                                    if(err)
+                                    {
+                                        console.log(err);
+                                        comment="there was an error with our registration system. try again";
+                                        response.render("signup",{htmlcomment: comment});
+                                    }
+                                    else
+                                    {
+                                            comment="registration complete. login after email verification";
+                                            response.render("login",{htmlcomment: comment});
+                                    }
                                 });
                                 
                             }
                             else
                             {
                                 //console.log(getkey());
-                                bcrypt.hash(request.body.passwdreenter,saltrounds,function(err,hash)
+                                Usercollection.register({_id:1,username:request.body.emailsub,firstname:request.body.firstname,lastname:request.body.lastname,key:getkeynow(),emailreg:"no"},request.body.passwdreenter,function(err,user)
                                 {
-                                    const usercoll=new Usercollection(
-                                        {
-                                            _id:1,
-                                            username:request.body.emailsub,
-                                            firstname:request.body.firstname,
-                                            lastname:request.body.lastname,
-                                            key:getkeynow(),
-                                            emailreg:"no",
-                                            password:hash
-                                            //to use md5 hasing     
-                                            //password:md5(request.body.passwdreenter)
-                                        });
-                                    usercoll.save();
-                                    comment="registration complete. login after email verification";
-                                    response.render("login",{htmlcomment: comment});
+                                    if(err)
+                                    {
+                                        console.log(err);
+                                        comment="there was an error with our registration system. try again";
+                                        response.render("signup",{htmlcomment: comment});
+                                    }
+                                    else
+                                    {
+                                            comment="registration complete. login after email verification";
+                                            response.render("login",{htmlcomment: comment});
+                                    }
                                 });
                             }
                         }
@@ -216,16 +244,7 @@ app.post("/register",function(request,response)
     //response.render("signup",{htmlcomment: comment});
 });
 
-app.post("/additenary",function(request,response)
-{
-    //console.log(request.body.lastitem);
-    var lastrecieved=request.body.lastitem;
-    if(lastrecieved!="")
-    {
-        items.push(lastrecieved);
-    }
-    response.render("itenary",{lastaddeditem: items});
-});
+
 app.post("/",function(request,response)
 {
     Usercollection.findOne({username:request.body.username},function(err,recusercoll)
@@ -240,31 +259,39 @@ app.post("/",function(request,response)
         {
             if(recusercoll)
             {
-                //to use md5 hashing instead use below code
-                //if(recusercoll.password==md5(request.body.passwd))
-                bcrypt.compare(request.body.passwd,recusercoll.password,function(err,res)
-                {
-                    if(res==true)
+                const tempuser = new Usercollection(
                     {
-                        if(recusercoll.emailreg=="yes")
+                        username:request.body.username,
+                        password:request.body.passwd
+                    });
+                    request.login(tempuser,function(err)
+                    {
+                        if(err)
                         {
-                            //console.log("email verification completed");
-                            response.render("itenary",{lastaddeditem: items});
+                            console.log(err);
+                            var comment="there was an error in our authentication system. please try again";
+                            response.render("login",{htmlcomment: comment});
                         }
                         else
                         {
-                            //console.log("email verification not yet completed");
-                            var comment="email verification not yet completed";
-                            response.render("login",{htmlcomment: comment});
+                            if(recusercoll.emailreg=="yes")
+                            {
+                                //console.log("email verification completed");
+                                passport.authenticate("local")(request,response,function()
+                                {
+                                    var comment="blank";
+                                    response.render("home");
+                                });
+                            }
+                            else
+                            {
+                                //console.log("email verification not yet completed");
+                                var comment="email verification not yet completed";
+                                response.render("login",{htmlcomment: comment});
+                            }
                         }
-                    }
-                    else
-                    {
-                        //console.log("username and password entered do not match");
-                        var comment="username and password entered do not match";
-                        response.render("login",{htmlcomment: comment});
-                    }
-                });
+                    });
+                
             }
             else
             {
